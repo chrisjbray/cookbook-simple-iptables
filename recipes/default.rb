@@ -55,6 +55,15 @@ end
 # iptables* (ipv4) and ip6tables* (ipv6)
 v2s = {'ipv4' => '', 'ipv6' => '6'}
 
+# If we have fail2ban installed, we want to trigger a restart after resetting the tables, so it can do it's thing
+fail2ban_exists = false
+begin
+  r = resources(service: 'fail2ban')
+  fail2ban_exists = true
+rescue Chef::Exceptions::ResourceNotFound
+  # doesn't exist
+end
+
 node["simple_iptables"]["ip_versions"].each do |ip_version|
   v = v2s[ip_version]
   case node['platform_family']
@@ -99,6 +108,7 @@ eos
     command "ip#{v}tables-restore < #{iptable_rules}"
     user "root"
     action :nothing
+    notifies :restart, "service[fail2ban]", :immediately if fail2ban_exists
   end
 
   template iptable_rules do
